@@ -1,0 +1,80 @@
+package main
+
+import (
+	"fmt"
+
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/group/edwards25519"
+	proof "go.dedis.ch/kyber/v3/proof"
+	"go.dedis.ch/kyber/v3/shuffle"
+)
+
+func main() {
+	k := 5 // Number of mixers
+
+	suite := edwards25519.NewBlakeSHA256Ed25519()
+
+	rand := suite.RandomStream()
+
+	// Create a "server" private/public keypair
+	h := suite.Scalar().Pick(rand)
+	H := suite.Point().Mul(h, nil)
+
+	// Create a set of ephemeral "client" keypairs to shuffle
+	c := make([]kyber.Scalar, k)
+	C := make([]kyber.Point, k)
+	// fmt.Println("\nclient keys:")
+	for i := 0; i < k; i++ {
+		c[i] = suite.Scalar().Pick(rand)
+		C[i] = suite.Point().Mul(c[i], nil)
+
+	}
+
+	// ElGamal-encrypt all these keypairs with the "server" key
+	X := make([]kyber.Point, k)
+	Y := make([]kyber.Point, k)
+	r := suite.Scalar() // temporary
+	for i := 0; i < k; i++ {
+		r.Pick(rand)
+		X[i] = suite.Point().Mul(r, nil)
+		Y[i] = suite.Point().Mul(r, H) // ElGamal blinding factor
+		Y[i].Add(Y[i], C[i])           // Encrypted client public key
+	}
+
+	Xbar, Ybar, prover := shuffle.Shuffle(suite, nil, H, X, Y, rand)
+	prf, err := proof.HashProve(suite, "PairShuffle", prover)
+	if err != nil {
+		panic("Shuffle proof failed: " + err.Error())
+	}
+
+	fmt.Printf("Before shuffle (X):\n%v\n", X)
+	fmt.Printf("After shuffle (X):\n%v\n", Xbar)
+	fmt.Printf("Before shuffle (Y):\n%v\n", X)
+	fmt.Printf("After shuffle (Y):\n%v\n", Xbar)
+
+	fmt.Printf("\nProof (first 16 bytes):\n%x\n", prf[:32])
+
+	verifier := shuffle.Verifier(suite, nil, H, X, Y, Xbar, Ybar)
+	err = proof.HashVerify(suite, "PairShuffle", verifier, prf)
+	if err == nil {
+		fmt.Printf("Shuffle proven")
+	}
+
+}
+
+/*
+% go mod tidy
+% go run main.go
+Before shuffle (X):
+[21a524b2f992570e50096b7ff99728d01e0f9111ed386d7507db63fe64bfc9a2 18481468988954e6848b8a1e2801a6059761471c04d5c2e961b647089916a8f2 4818a26f077a7ad89345b4ba2ea7187d02abbb1212ea0050f24e05492d789625 1154ee6c5d409a6671a6e42f4e3d5bc9404ac8fa7b8b3eb5dbbb1ee8f00a4d57 569798db389a0993ea139e31e46cd53cfebfcd6bdae2c7fcb9f210fcbb400494]
+After shuffle (X):
+[da5a824293789549586496ac7d0ae8bc50bffa02a67ba207a23d96f022f1e1d5 ebea4ee63d6ac07372b8f35f5bcb3aea19d801dde9db71d8bbceac144e157ad0 66c3aac615d91e37a9c1555d49baa26ac03552f018daea13c8a0b4eee6c37677 c39f0984b8c763a249458aa1fd4993401a775b8e819e96a5d16188012c4faac1 d14cc3622b73912901dbe00b9c3d0b7f8f1f9a82d67320e96aadb471f37bf962]
+Before shuffle (Y):
+[21a524b2f992570e50096b7ff99728d01e0f9111ed386d7507db63fe64bfc9a2 18481468988954e6848b8a1e2801a6059761471c04d5c2e961b647089916a8f2 4818a26f077a7ad89345b4ba2ea7187d02abbb1212ea0050f24e05492d789625 1154ee6c5d409a6671a6e42f4e3d5bc9404ac8fa7b8b3eb5dbbb1ee8f00a4d57 569798db389a0993ea139e31e46cd53cfebfcd6bdae2c7fcb9f210fcbb400494]
+After shuffle (Y):
+[da5a824293789549586496ac7d0ae8bc50bffa02a67ba207a23d96f022f1e1d5 ebea4ee63d6ac07372b8f35f5bcb3aea19d801dde9db71d8bbceac144e157ad0 66c3aac615d91e37a9c1555d49baa26ac03552f018daea13c8a0b4eee6c37677 c39f0984b8c763a249458aa1fd4993401a775b8e819e96a5d16188012c4faac1 d14cc3622b73912901dbe00b9c3d0b7f8f1f9a82d67320e96aadb471f37bf962]
+
+Proof (first 16 bytes):
+faf0052fb1f4dd4b7629c66c23619d150ac477325ba3c170b4d7c8cedf518f03
+Shuffle proven%
+*/
