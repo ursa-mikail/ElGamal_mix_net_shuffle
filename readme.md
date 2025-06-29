@@ -422,6 +422,19 @@ b2 = Y^(k1 + k2) * M
 
 So it's **as if we encrypted the message again**, but without ever decrypting it!
 
+- but were a single end decryption process can decrypt the answer.
+
+$$\
+M = \frac{b}{a^x}
+
+b = Y^{k_1 + k_2} * M
+
+a = (g^{k_1 + k_2})^x
+
+Y = g^x \mod p
+
+\$$
+
 ---
 
 ## 🔁 Permutation = Shuffling
