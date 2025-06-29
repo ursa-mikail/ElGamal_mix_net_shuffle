@@ -112,4 +112,17 @@ Y[50]: 22286aa23314c97184495a11efff7302861b3170a2cf3f19b9c9634184594bc3
 X[51]: 7e6c2491c533ad659518e7145e2be1ea656c951e70f329b23a06b8a8274b4556
 Y[51]: bbb0e1e2952df21f26f09f322d8054e06be2000193eb86ee9cec81ecb7a761a0
 
+- Generate N key pairs (1 per node - Each node has its own keypair.)
+- Encrypt each value in layers
+	- Structs for organizing:
+		- Node – holds keypair and proofs.
+		- Ciphertext – (X, Y) pair.
+
+		- Encrypts 52 values (0–51) once under a joint public key (sum of all public keys).
+		- Each node shuffles, re-randomizes, and proves the shuffle.
+		- Final output can be decrypted in reverse (not included here unless you request it).
+
+- Allow each node to shuffle + prove
+- Eventually decrypt step-by-step
+
 */
